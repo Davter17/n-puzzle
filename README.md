@@ -299,13 +299,21 @@ Convierte un archivo de texto en un tablero.
 ```
 
 ### ¿Qué hace el parser?
-1. Lee todas las líneas del archivo
+1. Intenta abrir el archivo y **distingue el tipo de error**:
+   - `FileNotFoundError` → `"File not found: '...'"`
+   - `PermissionError` → `"Permission denied: '...'"`
+   - Otros errores de I/O → mensaje descriptivo
 2. Elimina comentarios (todo lo que va después de `#`)
-3. Limpia líneas vacías
-4. La primera línea no vacía es el tamaño
-5. El resto de líneas contienen números (separados por espacios)
-6. Valida que haya exactamente `size × size` números
-7. Devuelve un `Board` con esos datos
+3. Limpia líneas vacías. Si no queda contenido → error `"File is empty or contains only comments"`
+4. La primera línea no vacía es el tamaño. Si no es un número entero ≥ 2 → error descriptivo
+5. El resto de líneas contienen números. Si algún token no es numérico → error indicando el nº de línea
+6. Valida que haya exactamente `size × size` números → si no, indica la diferencia
+7. Valida que **no haya duplicados** → lista los valores repetidos
+8. Valida que estén **todos los números** de `0` a `size² - 1` → lista los faltantes
+9. Valida que no haya **valores fuera de rango** → lista los inválidos
+10. Si todo es correcto, devuelve un `Board`
+
+Todos los errores se lanzan como `PuzzleError` (excepción personalizada) con un mensaje descriptivo que se muestra al usuario por stderr.
 
 ---
 
@@ -324,8 +332,9 @@ python -m src.main -f puzzles/3x3-1.txt -H manhattan -a a_star
 ### Flujo de ejecución
 
 ```
-1. Leer argumentos ──→ ¿Archivo (-f)? ──sí──→ parser.parse_input()
-                    └─→ ¿Generar (-g)? ──sí──→ generator.generate_puzzle()
+1. Leer argumentos ──→ ¿Archivo (-f)? ──sí──→ parser.parse_input() [con validación completa]
+        │                                    └── Si hay error → mensaje descriptivo en stderr + exit(1)
+        └─→ ¿Generar (-g)? ──sí──→ generator.generate_puzzle()
 
 2. Mostrar tablero inicial
 
@@ -372,8 +381,8 @@ Verifican que cada parte del código funciona correctamente.
 - Las heurísticas son admisibles (no sobreestiman el coste real)
 
 ### TestParser — ¿Lee bien los archivos?
-- Lee correctamente el archivo de ejemplo
-- Devuelve `None` para archivos que no existen
+- Lee correctamente el archivo de ejemplo y obtiene el tamaño esperado
+- Lanza `PuzzleError` para archivos que no existen (con mensaje descriptivo)
 
 ### TestSolver — ¿Resuelve correctamente?
 - Un puzzle ya resuelto devuelve 0 movimientos

@@ -10,7 +10,10 @@ class Board:
         else:
             self.tiles = tuple(range(size * size))
         self._hash = hash((self.size, self.tiles))
-        self._blank_pos = self.tiles.index(0)
+        try:
+            self._blank_pos = self.tiles.index(0)
+        except ValueError:
+            raise ValueError("Board must contain a 0 (blank tile)")
 
     @property
     def blank_pos(self) -> int:

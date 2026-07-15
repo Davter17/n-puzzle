@@ -2,7 +2,7 @@ import unittest
 from src.board import Board
 from src.generator import is_solvable, generate_puzzle, _invariant
 from src.heuristics import manhattan_distance, misplaced_tiles, linear_conflict, HEURISTICS
-from src.parser import parse_input
+from src.parser import parse_input, PuzzleError
 from src.solver import solve
 
 
@@ -118,8 +118,8 @@ class TestParser(unittest.TestCase):
         self.assertEqual(board.size, 3)
 
     def test_parse_nonexistent(self):
-        board = parse_input('nonexistent_file.txt')
-        self.assertIsNone(board)
+        with self.assertRaises(PuzzleError):
+            parse_input('nonexistent_file.txt')
 
 
 class TestSolver(unittest.TestCase):

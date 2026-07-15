@@ -5,7 +5,7 @@ import time
 from src.board import Board
 from src.generator import generate_puzzle, is_solvable
 from src.heuristics import HEURISTICS
-from src.parser import parse_input
+from src.parser import parse_input, PuzzleError
 from src.solver import solve, print_solution
 
 
@@ -27,9 +27,10 @@ def main():
     args = parser.parse_args()
 
     if args.file:
-        board = parse_input(args.file)
-        if board is None:
-            print(f"Error: Could not parse file '{args.file}'", file=sys.stderr)
+        try:
+            board = parse_input(args.file)
+        except PuzzleError as e:
+            print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
         print(f"Puzzle loaded from '{args.file}' (size={board.size}):")
     else:
