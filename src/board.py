@@ -3,17 +3,22 @@ from typing import List, Tuple, Optional
 
 
 class Board:
-    def __init__(self, size: int, tiles: Optional[List[int]] = None):
+    def __init__(self, size: int, tiles: Optional[List[int]] = None,
+                 blank_pos: Optional[int] = None):
         self.size = size
         if tiles:
             self.tiles = tuple(tiles)
         else:
             self.tiles = tuple(range(size * size))
         self._hash = hash((self.size, self.tiles))
-        try:
-            self._blank_pos = self.tiles.index(0)
-        except ValueError:
-            raise ValueError("Board must contain a 0 (blank tile)")
+        if blank_pos is None:
+            try:
+                blank_pos = self.tiles.index(0)
+            except ValueError:
+                raise ValueError("Board must contain a 0 (blank tile)")
+        if not 0 <= blank_pos < len(self.tiles) or self.tiles[blank_pos] != 0:
+            raise ValueError("blank_pos does not point to the blank tile")
+        self._blank_pos = blank_pos
 
     @property
     def blank_pos(self) -> int:
@@ -60,7 +65,7 @@ class Board:
     def _swap(self, i: int, j: int) -> 'Board':
         tiles = list(self.tiles)
         tiles[i], tiles[j] = tiles[j], tiles[i]
-        return Board(self.size, tiles)
+        return Board(self.size, tiles, blank_pos=j)
 
     @staticmethod
     def generate_goal(size: int) -> 'Board':

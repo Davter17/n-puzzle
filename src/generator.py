@@ -3,6 +3,9 @@ import random
 from src.board import Board
 
 
+MAX_SIZE = 20
+
+
 def _count_inversions(tiles):
     inv = 0
     arr = [t for t in tiles if t != 0]
@@ -36,13 +39,16 @@ def is_solvable(board: Board) -> bool:
 
 
 def generate_puzzle(size: int) -> Board:
-    if size < 2:
-        raise ValueError("Size must be at least 2")
+    if size < 1:
+        raise ValueError(f"Size must be at least 1, got {size}")
+    if size > MAX_SIZE:
+        raise ValueError(f"Size too large: {size} (max is {MAX_SIZE})")
 
+    goal = Board.generate_goal(size)
     tiles = list(range(size * size))
 
     while True:
         random.shuffle(tiles)
         board = Board(size, list(tiles))
-        if is_solvable(board):
+        if is_solvable(board) and board != goal:
             return board

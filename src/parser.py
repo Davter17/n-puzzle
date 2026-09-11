@@ -1,3 +1,4 @@
+import os
 from src.board import Board
 
 
@@ -5,14 +6,24 @@ class PuzzleError(Exception):
     pass
 
 
+MAX_SIZE = 20
+
+
 def parse_input(filename: str) -> Board:
+    if not os.path.exists(filename):
+        raise PuzzleError(f"File not found: '{filename}'")
+    if os.path.isdir(filename):
+        raise PuzzleError(f"'{filename}' is a directory, not a file")
+    if not os.path.isfile(filename):
+        raise PuzzleError(f"'{filename}' is not a regular file")
+    if not os.access(filename, os.R_OK):
+        raise PuzzleError(f"No read permission for '{filename}'")
+
     try:
         with open(filename, 'r') as f:
             lines = f.readlines()
     except PermissionError:
         raise PuzzleError(f"Permission denied: '{filename}'")
-    except FileNotFoundError:
-        raise PuzzleError(f"File not found: '{filename}'")
     except IOError as e:
         raise PuzzleError(f"Cannot read file '{filename}': {e}")
 
@@ -33,11 +44,20 @@ def parse_input(filename: str) -> Board:
     except ValueError:
         raise PuzzleError(f"Invalid puzzle size: '{clean_lines[0]}' is not a number")
 
-    if size < 2:
-        raise PuzzleError(f"Puzzle size must be at least 2, got {size}")
+    if size < 1:
+        raise PuzzleError(f"Puzzle size must be at least 1, got {size}")
+    if size > MAX_SIZE:
+        raise PuzzleError(f"Puzzle size too large: {size} (max is {MAX_SIZE})")
+
+    data_lines = clean_lines[1:]
+    if len(data_lines) < size:
+        raise PuzzleError(
+            f"Expected at least {size} lines of tiles for a {size}-puzzle, "
+            f"but got {len(data_lines)}"
+        )
 
     tiles = []
-    for line_num, line in enumerate(clean_lines[1:], start=2):
+    for line_num, line in enumerate(data_lines, start=2):
         for token in line.split():
             if token.startswith('#'):
                 break

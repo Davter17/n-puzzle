@@ -1,33 +1,44 @@
 import heapq
-from typing import Callable, Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from src.board import Board
-from src.heuristics import HEURISTICS
+from src.heuristics import get_child_h_fn
+
+_INF = 1 << 60
 
 
 class Node:
-    __slots__ = ('board', 'parent', 'g', 'h', 'f', 'move')
+    __slots__ = ('tiles', 'blank', 'parent', 'g', 'h', 'move')
 
-    def __init__(self, board: Board, parent: Optional['Node'] = None,
-                 g: int = 0, h: int = 0, move: str = ''):
-        self.board = board
+    def __init__(self, tiles: Tuple[int, ...], blank: int,
+                 parent: Optional['Node'] = None, g: int = 0,
+                 h: int = 0, move: str = ''):
+        self.tiles = tiles
+        self.blank = blank
         self.parent = parent
         self.g = g
         self.h = h
-        self.f = g + h
         self.move = move
 
-    def __lt__(self, other: 'Node') -> bool:
-        if self.f == other.f:
-            return self.h < other.h
-        return self.f < other.f
+
+def _neighbor_positions(blank: int, size: int, total: int) -> List[int]:
+    positions = []
+    if blank >= size:
+        positions.append(blank - size)
+    if blank < total - size:
+        positions.append(blank + size)
+    if blank % size:
+        positions.append(blank - 1)
+    if blank % size != size - 1:
+        positions.append(blank + 1)
+    return positions
 
 
-def reconstruct_path(node: Node) -> List[Board]:
+def reconstruct_path(node: Node, size: int) -> List[Board]:
     path = []
     current: Optional[Node] = node
     while current:
-        path.append(current.board)
+        path.append(Board(size, list(current.tiles)))
         current = current.parent
     path.reverse()
     return path
@@ -45,40 +56,49 @@ def reconstruct_moves(node: Node) -> List[str]:
 
 def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
           algorithm: str = 'a_star') -> Optional[Tuple[List[Board], Dict]]:
-    goal = Board.generate_goal(initial_board.size)
+    size = initial_board.size
+    total = size * size
+    goal_tiles = Board.generate_goal(size).tiles
+    start_tiles = initial_board.tiles
 
-    start_h = heuristic_fn(initial_board)
-    start_node = Node(initial_board, g=0, h=start_h)
-
-    if start_node.board == goal:
+    if start_tiles == goal_tiles:
         return [initial_board], {
             'time_complexity': 1,
             'size_complexity': 1,
             'moves': 0,
         }
 
-    open_set: List[Tuple[int, int, Node]] = []
-    entry_counter = 0
-    heapq.heappush(open_set, (start_node.f, entry_counter, start_node))
-    entry_counter += 1
+    start_h = heuristic_fn(initial_board)
+    child_h_fn = get_child_h_fn(heuristic_fn)
 
-    closed_set: Set[Board] = set()
-    g_scores: Dict[Board, int] = {initial_board: 0}
+    start_node = Node(start_tiles, initial_board.blank_pos, None, 0, start_h)
+
+    open_heap: List[Tuple[int, int, int, Node]] = []
+    counter = 0
+    heapq.heappush(open_heap, (start_h, start_h, counter, start_node))
+    counter += 1
+
+    # Best known g per state. Nodes are re-opened when a shorter path to an
+    # already expanded state is found (needed because linear conflict is
+    # admissible but not consistent).
+    g_best: Dict[Tuple[int, ...], int] = {start_tiles: 0}
 
     max_open_size = 1
     total_opened = 0
 
-    while open_set:
-        max_open_size = max(max_open_size, len(open_set))
+    while open_heap:
+        max_open_size = max(max_open_size, len(open_heap))
 
-        _, _, current = heapq.heappop(open_set)
+        _, _, _, current = heapq.heappop(open_heap)
         total_opened += 1
 
-        if current.board in closed_set:
-            continue
+        tiles = current.tiles
+        g = current.g
+        if g > g_best[tiles]:
+            continue  # stale entry: a shorter path to this state exists
 
-        if current.board == goal:
-            path = reconstruct_path(current)
+        if tiles == goal_tiles:
+            path = reconstruct_path(current, size)
             stats = {
                 'time_complexity': total_opened,
                 'size_complexity': max_open_size,
@@ -86,35 +106,50 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
             }
             return path, stats
 
-        closed_set.add(current.board)
+        blank = current.blank
+        h = current.h
+        new_g = g + 1
 
-        for neighbor in current.board.get_neighbors():
-            if neighbor in closed_set:
-                continue
-
-            if algorithm == 'greedy':
-                new_g = current.g + 1
-                new_h = heuristic_fn(neighbor)
-                if neighbor not in g_scores or new_g < g_scores[neighbor]:
-                    g_scores[neighbor] = new_g
-                    node = Node(neighbor, current, g=new_g, h=new_h)
-                    heapq.heappush(open_set, (new_h, entry_counter, node))
-                    entry_counter += 1
-            elif algorithm == 'uniform_cost':
-                new_g = current.g + 1
-                if neighbor not in g_scores or new_g < g_scores[neighbor]:
-                    g_scores[neighbor] = new_g
-                    node = Node(neighbor, current, g=new_g, h=0)
-                    heapq.heappush(open_set, (new_g, entry_counter, node))
-                    entry_counter += 1
+        for pos in _neighbor_positions(blank, size, total):
+            tile = tiles[pos]
+            if pos > blank:
+                neighbor_tiles = (
+                    tiles[:blank] + (tile,) + tiles[blank + 1:pos]
+                    + (0,) + tiles[pos + 1:]
+                )
             else:
-                tentative_g = current.g + 1
-                if neighbor not in g_scores or tentative_g < g_scores[neighbor]:
-                    g_scores[neighbor] = tentative_g
-                    h = heuristic_fn(neighbor)
-                    node = Node(neighbor, current, g=tentative_g, h=h)
-                    heapq.heappush(open_set, (node.f, entry_counter, node))
-                    entry_counter += 1
+                neighbor_tiles = (
+                    tiles[:pos] + (0,) + tiles[pos + 1:blank]
+                    + (tile,) + tiles[blank + 1:]
+                )
+
+            if new_g < g_best.get(neighbor_tiles, _INF):
+                g_best[neighbor_tiles] = new_g
+
+                if algorithm == 'uniform_cost':
+                    child_h = 0
+                else:
+                    child_h = child_h_fn(size, tiles, tile, pos, blank, h)
+
+                if algorithm == 'greedy':
+                    priority = child_h
+                elif algorithm == 'uniform_cost':
+                    priority = new_g
+                else:
+                    priority = new_g + child_h
+
+                if pos == blank - size:
+                    move = 'up'
+                elif pos == blank + size:
+                    move = 'down'
+                elif pos == blank - 1:
+                    move = 'left'
+                else:
+                    move = 'right'
+
+                child = Node(neighbor_tiles, pos, current, new_g, child_h, move)
+                heapq.heappush(open_heap, (priority, child_h, counter, child))
+                counter += 1
 
     return None
 

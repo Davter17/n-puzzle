@@ -1,7 +1,8 @@
+import random
 import unittest
 from src.board import Board
 from src.generator import is_solvable, generate_puzzle, _invariant
-from src.heuristics import manhattan_distance, misplaced_tiles, linear_conflict, HEURISTICS
+from src.heuristics import manhattan_distance, misplaced_tiles, linear_conflict, HEURISTICS, get_child_h_fn
 from src.parser import parse_input, PuzzleError
 from src.solver import solve
 
@@ -111,9 +112,46 @@ class TestHeuristics(unittest.TestCase):
                                  f"Heuristic {name} path is suspiciously long")
 
 
+class TestIncrementalHeuristics(unittest.TestCase):
+    def _neighbor_positions(self, board):
+        pos = board.blank_pos
+        n = board.size
+        positions = []
+        if pos >= n:
+            positions.append(pos - n)
+        if pos < n * n - n:
+            positions.append(pos + n)
+        if pos % n:
+            positions.append(pos - 1)
+        if pos % n != n - 1:
+            positions.append(pos + 1)
+        return positions
+
+    def test_incremental_matches_full_heuristic(self):
+        for size in (3, 4):
+            for name, h_fn in HEURISTICS.items():
+                child_h_fn = get_child_h_fn(h_fn)
+                rng = random.Random(1000 + size)
+                board = Board.generate_goal(size)
+                h = h_fn(board)
+                for _ in range(300):
+                    blank = board.blank_pos
+                    pos = rng.choice(self._neighbor_positions(board))
+                    tile = board.tiles[pos]
+                    new_h = child_h_fn(size, board.tiles, tile, pos, blank, h)
+                    tiles = list(board.tiles)
+                    tiles[blank] = tile
+                    tiles[pos] = 0
+                    board = Board(size, tiles)
+                    h = new_h
+                    self.assertEqual(
+                        h, h_fn(board),
+                        f"Incremental {name} diverged on size {size}")
+
+
 class TestParser(unittest.TestCase):
     def test_parse_basic(self):
-        board = parse_input('puzzles/3x3-1.txt')
+        board = parse_input('puzzles/3x3.txt')
         self.assertIsNotNone(board)
         self.assertEqual(board.size, 3)
 
@@ -148,6 +186,14 @@ class TestSolver(unittest.TestCase):
         if is_solvable(board):
             result = solve(board, manhattan_distance, algorithm='uniform_cost')
             self.assertIsNotNone(result)
+
+    def test_solve_4x4_linear_conflict_optimal(self):
+        board = parse_input('puzzles/4x4.txt')
+        result = solve(board, linear_conflict)
+        self.assertIsNotNone(result)
+        path, stats = result
+        self.assertEqual(stats['moves'], 51)
+        self.assertEqual(path[-1], Board.generate_goal(4))
 
 
 if __name__ == '__main__':

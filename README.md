@@ -51,9 +51,16 @@ n-puzzle/
 ├── Makefile                  ← Comandos rápidos (make run, make test)
 ├── README.md                 ← Este archivo
 ├── puzzles/                  ← Archivos de puzzles de ejemplo
+│   ├── 1x1-solved.txt        ← Puzzle 1x1 resuelto
+│   ├── 2x2-solved.txt        ← Puzzle 2x2 resuelto
+│   ├── 2x2-1.txt             ← Puzzle 2x2 desordenado
 │   ├── 3x3-1.txt
 │   ├── 4x4-1.txt
-│   └── solvable-3x3.txt
+│   ├── 8x8-1.txt             ← Puzzle 8x8
+│   ├── 12x12-1.txt           ← Puzzle 12x12
+│   ├── 17x17-1.txt           ← Puzzle 17x17
+│   ├── solvable-3x3.txt
+│   └── e_*.txt               ← Puzzles con errores (ver sección de validación)
 ├── src/                      ← Código fuente
 │   ├── __init__.py           ← Hace que src/ sea un paquete Python
 │   ├── board.py              ← Representación del tablero
@@ -165,6 +172,10 @@ Dos tableros del mismo tamaño son **alcanzables entre sí** si y solo si tienen
 
 #### `generate_puzzle(size)`
 Genera un puzzle aleatorio **garantizando que sea solucionable**: baraja las fichas al azar en un bucle y comprueba `is_solvable()` hasta que el invariante coincida.
+
+**Límites de tamaño**:
+- Mínimo: **1** (aunque un puzzle 1x1 es trivial)
+- Máximo: **20** (puzzles muy grandes pueden consumir mucha memoria)
 
 ---
 
@@ -299,19 +310,50 @@ Convierte un archivo de texto en un tablero.
 ```
 
 ### ¿Qué hace el parser?
-1. Intenta abrir el archivo y **distingue el tipo de error**:
-   - `FileNotFoundError` → `"File not found: '...'"`
-   - `PermissionError` → `"Permission denied: '...'"`
+1. **Validación del archivo**:
+   - ¿Existe? → Si no: `"File not found: '...'"`
+   - ¿Es un directorio? → Si: `"'...' is a directory, not a file"`
+   - ¿Es un archivo regular? → Si no: `"'...' is not a regular file"`
+   - ¿Tiene permisos de lectura? → Si no: `"No read permission for '...'"`
    - Otros errores de I/O → mensaje descriptivo
 2. Elimina comentarios (todo lo que va después de `#`)
 3. Limpia líneas vacías. Si no queda contenido → error `"File is empty or contains only comments"`
-4. La primera línea no vacía es el tamaño. Si no es un número entero ≥ 2 → error descriptivo
-5. El resto de líneas contienen números. Si algún token no es numérico → error indicando el nº de línea
-6. Valida que haya exactamente `size × size` números → si no, indica la diferencia
-7. Valida que **no haya duplicados** → lista los valores repetidos
-8. Valida que estén **todos los números** de `0` a `size² - 1` → lista los faltantes
-9. Valida que no haya **valores fuera de rango** → lista los inválidos
-10. Si todo es correcto, devuelve un `Board`
+4. La primera línea no vacía es el tamaño. Valida que sea un número entero:
+   - Mínimo: **1** (puzzles 1x1, 2x2, 3x3, etc.)
+   - Máximo: **20** (puzzles hasta 20x20)
+   - Si no cumple → error descriptivo
+5. Valida que haya al menos `size` líneas de tiles
+6. El resto de líneas contienen números. Si algún token no es numérico → error indicando el nº de línea
+7. Valida que haya exactamente `size × size` números → si no, indica la diferencia
+8. Valida que **no haya duplicados** → lista los valores repetidos
+9. Valida que estén **todos los números** de `0` a `size² - 1` → lista los faltantes
+10. Valida que no haya **valores fuera de rango** → lista los inválidos
+11. Si todo es correcto, devuelve un `Board`
+
+### Puzzles con errores de ejemplo
+
+La carpeta `puzzles/` incluye archivos `e_*.txt` para probar cada validación:
+
+| Archivo | Error que demuestra |
+|---------|---------------------|
+| `e_empty.txt` | Archivo vacío |
+| `e_onlyComments.txt` | Solo contiene comentarios |
+| `e_invalidSize.txt` | Tamaño no numérico (ej: "abc") |
+| `e_sizeTooSmall.txt` | Tamaño 0 o negativo |
+| `e_sizeTooLarge.txt` | Tamaño mayor a 20 |
+| `e_negativeSize.txt` | Tamaño negativo |
+| `e_noSquare.txt` | No hay suficientes líneas de tiles |
+| `e_tooFewLines.txt` | Faltan filas de tiles |
+| `e_tooManyTiles.txt` | Demasiados tiles para el tamaño |
+| `e_withLetters.txt` | Tokens no numéricos (letras) |
+| `e_duplicates.txt` | Tiles duplicados |
+| `e_missingTiles.txt` | Faltan valores en el rango |
+| `e_outOfRange.txt` | Valores fuera del rango válido |
+| `e_noSolvable.txt` | Puzzle no solucionable (paridad incorrecta) |
+
+Además, se pueden probar estos errores pasando argumentos inválidos:
+- `python -m src.main -f puzzles/` → Error: es un directorio
+- `python -m src.main -f nonexistent.txt` → Error: archivo no encontrado
 
 Todos los errores se lanzan como `PuzzleError` (excepción personalizada) con un mensaje descriptivo que se muestra al usuario por stderr.
 
@@ -403,14 +445,26 @@ Verifican que cada parte del código funciona correctamente.
 # Resolver un puzzle desde archivo (A* con Manhattan por defecto)
 make run ARGS="-f puzzles/3x3-1.txt"
 
+# Resolver un puzzle pequeño (1x1 o 2x2)
+make run ARGS="-f puzzles/1x1-solved.txt"
+make run ARGS="-f puzzles/2x2-1.txt"
+
 # Generar y resolver un puzzle aleatorio 4x4 con Linear Conflict
 make run ARGS="-g 4 -H linear_conflict"
 
 # Solo comprobar si un puzzle es solucionable
 make run ARGS="-f puzzles/3x3-1.txt -s"
 
+# Comprobar puzzles grandes (8x8, 12x12, 17x17)
+make run ARGS="-f puzzles/8x8-1.txt -s"
+make run ARGS="-f puzzles/12x12-1.txt -s"
+make run ARGS="-f puzzles/17x17-1.txt -s"
+
 # Usar el algoritmo voraz (greedy)
 make run ARGS="-f puzzles/3x3-1.txt -a greedy -H misplaced"
+
+# Probar un archivo con error
+make run ARGS="-f puzzles/e_noSolvable.txt"
 
 # Ejecutar todos los tests
 make test
@@ -425,11 +479,25 @@ make clean
 # Resolver un puzzle
 python -m src.main -f puzzles/3x3-1.txt
 
+# Puzzles pequeños (1x1, 2x2)
+python -m src.main -f puzzles/1x1-solved.txt
+python -m src.main -f puzzles/2x2-1.txt
+
 # Con heurística específica
 python -m src.main -f puzzles/4x4-1.txt -H linear_conflict -a a_star
 
+# Puzzles grandes (solo verificar solubilidad, ya que resolverlos puede tardar)
+python -m src.main -f puzzles/8x8-1.txt -s
+python -m src.main -f puzzles/12x12-1.txt -s
+python -m src.main -f puzzles/17x17-1.txt -s
+
 # Generar puzzle aleatorio
 python -m src.main -g 3
+
+# Probar archivos con errores
+python -m src.main -f puzzles/e_empty.txt
+python -m src.main -f puzzles/e_withLetters.txt
+python -m src.main -f puzzles/e_noSolvable.txt
 
 # Ejecutar tests
 python -m pytest tests/ -v
