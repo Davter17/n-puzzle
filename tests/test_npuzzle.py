@@ -50,6 +50,13 @@ class TestSolvability(unittest.TestCase):
         for _ in range(20):
             board = generate_puzzle(3)
             self.assertTrue(is_solvable(board))
+            self.assertNotEqual(board, Board.generate_goal(3))
+
+    def test_generate_1x1(self):
+        board = generate_puzzle(1)
+        self.assertEqual(board.size, 1)
+        self.assertEqual(board.tiles, (0,))
+        self.assertTrue(is_solvable(board))
 
     def test_unsolvable_subject_example(self):
         board = Board(3, [3, 2, 6, 1, 4, 0, 8, 7, 5])
@@ -159,6 +166,11 @@ class TestParser(unittest.TestCase):
         with self.assertRaises(PuzzleError):
             parse_input('nonexistent_file.txt')
 
+    def test_parse_out_of_range(self):
+        with self.assertRaises(PuzzleError) as ctx:
+            parse_input('puzzles/e_outOfRange.txt')
+        self.assertIn('out of range', str(ctx.exception))
+
 
 class TestSolver(unittest.TestCase):
     def test_solve_already_solved(self):
@@ -169,23 +181,29 @@ class TestSolver(unittest.TestCase):
         self.assertEqual(stats['moves'], 0)
 
     def test_unsolvable_returns_none(self):
-        goal = Board.generate_goal(3)
-        std_goal = Board(3, [1, 2, 3, 4, 5, 6, 7, 8, 0])
-        if not is_solvable(std_goal):
-            result = solve(std_goal, manhattan_distance)
-            self.assertIsNone(result)
+        board = parse_input('puzzles/e_noSolvable.txt')
+        self.assertFalse(is_solvable(board))
+        result = solve(board, manhattan_distance)
+        self.assertIsNone(result)
 
     def test_greedy_finds_solution(self):
         board = Board(3, [7, 8, 1, 3, 0, 6, 4, 2, 5])
-        if is_solvable(board):
-            result = solve(board, manhattan_distance, algorithm='greedy')
-            self.assertIsNotNone(result)
+        result = solve(board, manhattan_distance, algorithm='greedy')
+        self.assertIsNotNone(result)
+        path, stats = result
+        self.assertEqual(path[-1], Board.generate_goal(3))
+        self.assertGreaterEqual(stats['moves'], 22)
 
-    def test_uniform_cost_finds_solution(self):
+    def test_uniform_cost_matches_astar(self):
         board = Board(3, [7, 8, 1, 3, 0, 6, 4, 2, 5])
-        if is_solvable(board):
-            result = solve(board, manhattan_distance, algorithm='uniform_cost')
-            self.assertIsNotNone(result)
+        astar = solve(board, manhattan_distance, algorithm='a_star')
+        ucs = solve(board, manhattan_distance, algorithm='uniform_cost')
+        self.assertIsNotNone(astar)
+        self.assertIsNotNone(ucs)
+        self.assertEqual(astar[1]['moves'], 22)
+        self.assertEqual(ucs[1]['moves'], astar[1]['moves'])
+        self.assertGreaterEqual(astar[1]['size_complexity'],
+                                astar[1]['time_complexity'])
 
     def test_solve_4x4_linear_conflict_optimal(self):
         board = parse_input('puzzles/4x4.txt')

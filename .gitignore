@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+CAMBIOS.md
+DEFENSA.md
+ANALISIS.md
+GUIA.md
+PLAN_125.md
+tmp_*.txt

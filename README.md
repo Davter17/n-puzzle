@@ -53,13 +53,11 @@ n-puzzle/
 ├── puzzles/                  ← Archivos de puzzles de ejemplo
 │   ├── 1x1-solved.txt        ← Puzzle 1x1 resuelto
 │   ├── 2x2-solved.txt        ← Puzzle 2x2 resuelto
-│   ├── 2x2-1.txt             ← Puzzle 2x2 desordenado
-│   ├── 3x3-1.txt
-│   ├── 4x4-1.txt
-│   ├── 8x8-1.txt             ← Puzzle 8x8
-│   ├── 12x12-1.txt           ← Puzzle 12x12
-│   ├── 17x17-1.txt           ← Puzzle 17x17
-│   ├── solvable-3x3.txt
+│   ├── 2x2.txt               ← Puzzle 2x2 desordenado
+│   ├── 3x3.txt
+│   ├── 4x4.txt / 4x4-1.txt
+│   ├── 5x5.txt … 8x8.txt
+│   ├── 12x12.txt / 17x17.txt
 │   └── e_*.txt               ← Puzzles con errores (ver sección de validación)
 ├── src/                      ← Código fuente
 │   ├── __init__.py           ← Hace que src/ sea un paquete Python
@@ -170,8 +168,8 @@ Dos tableros del mismo tamaño son **alcanzables entre sí** si y solo si tienen
 # 4. Si coinciden → ¡tiene solución!
 ```
 
-#### `generate_puzzle(size)`
-Genera un puzzle aleatorio **garantizando que sea solucionable**: baraja las fichas al azar en un bucle y comprueba `is_solvable()` hasta que el invariante coincida.
+#### `generate_puzzle(size, iterations=0)`
+Genera un puzzle aleatorio **garantizando que sea solucionable**: parte del objetivo y da `iterations` movimientos legales al azar (si `iterations` es 0, usa `size² × 10`). Un 1×1 devuelve el objetivo, que es el único estado posible.
 
 **Límites de tamaño**:
 - Mínimo: **1** (aunque un puzzle 1x1 es trivial)
@@ -364,7 +362,7 @@ Todos los errores se lanzan como `PuzzleError` (excepción personalizada) con un
 Punto de entrada que conecta todas las piezas mediante línea de comandos.
 
 ```
-python -m src.main -f puzzles/3x3-1.txt -H manhattan -a a_star
+python -m src.main -f puzzles/3x3.txt -H manhattan -a a_star
                    │                      │            │
                    │                      │            └── Algoritmo
                    │                      └── Heurística
@@ -393,11 +391,15 @@ python -m src.main -f puzzles/3x3-1.txt -H manhattan -a a_star
 
 | Flag | Descripción | Ejemplo |
 |------|-------------|---------|
-| `-f`, `--file` | Archivo con el puzzle | `-f puzzles/3x3-1.txt` |
+| `-f`, `--file` | Archivo con el puzzle | `-f puzzles/3x3.txt` |
 | `-g`, `--generate` | Generar puzzle aleatorio de tamaño N | `-g 4` |
+| `-i`, `--iterations` | Movimientos aleatorios al generar con `-g` | `-g 5 -i 40` |
 | `-H`, `--heuristic` | Heurística: `manhattan`, `misplaced`, `linear_conflict` | `-H linear_conflict` |
 | `-a`, `--algorithm` | Algoritmo: `a_star`, `greedy`, `uniform_cost` | `-a greedy` |
+| `-w`, `--weight` | Peso de A\* (`f = g + w·h`). `1` = óptimo | `-w 1.5` |
+| `--max-nodes` | Cortar la búsqueda tras N estados abiertos | `--max-nodes 2000000` |
 | `-s`, `--solvable` | Solo comprobar si es solucionable (no resolver) | `-s` |
+| `-q`, `--stats-only` | Solo estadísticas, sin imprimir tableros | `-q` |
 
 ---
 
@@ -443,25 +445,25 @@ Verifican que cada parte del código funciona correctamente.
 
 ```bash
 # Resolver un puzzle desde archivo (A* con Manhattan por defecto)
-make run ARGS="-f puzzles/3x3-1.txt"
+make run ARGS="-f puzzles/3x3.txt"
 
 # Resolver un puzzle pequeño (1x1 o 2x2)
 make run ARGS="-f puzzles/1x1-solved.txt"
-make run ARGS="-f puzzles/2x2-1.txt"
+make run ARGS="-f puzzles/2x2.txt"
 
 # Generar y resolver un puzzle aleatorio 4x4 con Linear Conflict
 make run ARGS="-g 4 -H linear_conflict"
 
 # Solo comprobar si un puzzle es solucionable
-make run ARGS="-f puzzles/3x3-1.txt -s"
+make run ARGS="-f puzzles/3x3.txt -s"
 
 # Comprobar puzzles grandes (8x8, 12x12, 17x17)
-make run ARGS="-f puzzles/8x8-1.txt -s"
-make run ARGS="-f puzzles/12x12-1.txt -s"
-make run ARGS="-f puzzles/17x17-1.txt -s"
+make run ARGS="-f puzzles/8x8.txt -s"
+make run ARGS="-f puzzles/12x12.txt -s"
+make run ARGS="-f puzzles/17x17.txt -s"
 
 # Usar el algoritmo voraz (greedy)
-make run ARGS="-f puzzles/3x3-1.txt -a greedy -H misplaced"
+make run ARGS="-f puzzles/3x3.txt -a greedy -H misplaced"
 
 # Probar un archivo con error
 make run ARGS="-f puzzles/e_noSolvable.txt"
@@ -471,25 +473,27 @@ make test
 
 # Limpiar archivos temporales
 make clean
+make fclean
+make re
 ```
 
 ### Sin Makefile (Windows / comandos directos)
 
 ```powershell
 # Resolver un puzzle
-python -m src.main -f puzzles/3x3-1.txt
+python -m src.main -f puzzles/3x3.txt
 
 # Puzzles pequeños (1x1, 2x2)
 python -m src.main -f puzzles/1x1-solved.txt
-python -m src.main -f puzzles/2x2-1.txt
+python -m src.main -f puzzles/2x2.txt
 
 # Con heurística específica
 python -m src.main -f puzzles/4x4-1.txt -H linear_conflict -a a_star
 
 # Puzzles grandes (solo verificar solubilidad, ya que resolverlos puede tardar)
-python -m src.main -f puzzles/8x8-1.txt -s
-python -m src.main -f puzzles/12x12-1.txt -s
-python -m src.main -f puzzles/17x17-1.txt -s
+python -m src.main -f puzzles/8x8.txt -s
+python -m src.main -f puzzles/12x12.txt -s
+python -m src.main -f puzzles/17x17.txt -s
 
 # Generar puzzle aleatorio
 python -m src.main -g 3

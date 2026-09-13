@@ -21,17 +21,21 @@ class Node:
         self.move = move
 
 
-def _neighbor_positions(blank: int, size: int, total: int) -> List[int]:
-    positions = []
-    if blank >= size:
-        positions.append(blank - size)
-    if blank < total - size:
-        positions.append(blank + size)
-    if blank % size:
-        positions.append(blank - 1)
-    if blank % size != size - 1:
-        positions.append(blank + 1)
-    return positions
+def _neighbor_table(size: int) -> List[Tuple[Tuple[int, str], ...]]:
+    total = size * size
+    table = []
+    for blank in range(total):
+        opts = []
+        if blank >= size:
+            opts.append((blank - size, 'up'))
+        if blank < total - size:
+            opts.append((blank + size, 'down'))
+        if blank % size:
+            opts.append((blank - 1, 'left'))
+        if blank % size != size - 1:
+            opts.append((blank + 1, 'right'))
+        table.append(tuple(opts))
+    return table
 
 
 def reconstruct_path(node: Node, size: int) -> List[Board]:
@@ -54,10 +58,16 @@ def reconstruct_moves(node: Node) -> List[str]:
     return moves
 
 
+class SearchLimitReached(Exception):
+    def __init__(self, opened: int):
+        super().__init__(f"search aborted after {opened} opened states")
+        self.opened = opened
+
+
 def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
-          algorithm: str = 'a_star') -> Optional[Tuple[List[Board], Dict]]:
+          algorithm: str = 'a_star', weight: float = 1.0,
+          max_nodes: int = 0) -> Optional[Tuple[List[Board], Dict]]:
     size = initial_board.size
-    total = size * size
     goal_tiles = Board.generate_goal(size).tiles
     start_tiles = initial_board.tiles
 
@@ -75,7 +85,13 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
 
     open_heap: List[Tuple[int, int, int, Node]] = []
     counter = 0
-    heapq.heappush(open_heap, (start_h, start_h, counter, start_node))
+    if algorithm == 'greedy':
+        start_priority = start_h
+    elif algorithm == 'uniform_cost':
+        start_priority = 0
+    else:
+        start_priority = start_h * weight
+    heapq.heappush(open_heap, (start_priority, start_h, counter, start_node))
     counter += 1
 
     # Best known g per state. Nodes are re-opened when a shorter path to an
@@ -83,14 +99,16 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
     # admissible but not consistent).
     g_best: Dict[Tuple[int, ...], int] = {start_tiles: 0}
 
-    max_open_size = 1
+    max_memory = 2
     total_opened = 0
-
+    neighbor_table = _neighbor_table(size)
     while open_heap:
-        max_open_size = max(max_open_size, len(open_heap))
+        max_memory = max(max_memory, len(open_heap) + len(g_best))
 
         _, _, _, current = heapq.heappop(open_heap)
         total_opened += 1
+        if max_nodes and total_opened > max_nodes:
+            raise SearchLimitReached(total_opened)
 
         tiles = current.tiles
         g = current.g
@@ -101,7 +119,7 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
             path = reconstruct_path(current, size)
             stats = {
                 'time_complexity': total_opened,
-                'size_complexity': max_open_size,
+                'size_complexity': max_memory,
                 'moves': len(path) - 1,
             }
             return path, stats
@@ -110,7 +128,7 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
         h = current.h
         new_g = g + 1
 
-        for pos in _neighbor_positions(blank, size, total):
+        for pos, move in neighbor_table[blank]:
             tile = tiles[pos]
             if pos > blank:
                 neighbor_tiles = (
@@ -136,16 +154,7 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
                 elif algorithm == 'uniform_cost':
                     priority = new_g
                 else:
-                    priority = new_g + child_h
-
-                if pos == blank - size:
-                    move = 'up'
-                elif pos == blank + size:
-                    move = 'down'
-                elif pos == blank - 1:
-                    move = 'left'
-                else:
-                    move = 'right'
+                    priority = new_g + child_h * weight
 
                 child = Node(neighbor_tiles, pos, current, new_g, child_h, move)
                 heapq.heappush(open_heap, (priority, child_h, counter, child))

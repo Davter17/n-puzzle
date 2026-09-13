@@ -2,18 +2,18 @@ import argparse
 import sys
 import time
 
-from src.board import Board
 from src.generator import generate_puzzle, is_solvable, MAX_SIZE
 from src.heuristics import HEURISTICS
 from src.parser import parse_input, PuzzleError
-from src.solver import solve, print_solution
+from src.solver import SearchLimitReached, print_solution, solve
 
 
 def main():
     parser = argparse.ArgumentParser(description='N-Puzzle solver using A*')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-f', '--file', type=str, help='Input file with puzzle')
-    group.add_argument('-g', '--generate', type=int, help='Generate random puzzle of given size (3-20)')
+    group.add_argument('-g', '--generate', type=int,
+                       help='Generate random puzzle of given size (1-20)')
 
     parser.add_argument('-H', '--heuristic', type=str, default='linear_conflict',
                         choices=list(HEURISTICS.keys()),
@@ -25,6 +25,12 @@ def main():
                         help='Only check if the puzzle is solvable')
     parser.add_argument('-q', '--stats-only', action='store_true',
                         help='Print only statistics (no boards or solution path)')
+    parser.add_argument('-w', '--weight', type=float, default=1.0,
+                        help='A* weight (f = g + w*h). 1.0 = optimal, >1 = faster')
+    parser.add_argument('-i', '--iterations', type=int, default=0,
+                        help='Random walks from the goal when using -g (0 = auto)')
+    parser.add_argument('--max-nodes', type=int, default=0,
+                        help='Abort after N opened states (0 = no limit)')
 
     args = parser.parse_args()
 
@@ -35,6 +41,18 @@ def main():
         if args.generate > MAX_SIZE:
             print(f"Error: Size too large: {args.generate} (max is {MAX_SIZE})", file=sys.stderr)
             sys.exit(1)
+
+    if args.weight <= 0:
+        print(f"Error: Weight must be positive, got {args.weight}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.iterations < 0:
+        print(f"Error: Iterations must be >= 0, got {args.iterations}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.max_nodes < 0:
+        print(f"Error: max-nodes must be >= 0, got {args.max_nodes}", file=sys.stderr)
+        sys.exit(1)
 
     quiet = args.stats_only
 
@@ -47,7 +65,7 @@ def main():
         if not quiet:
             print(f"Puzzle loaded from '{args.file}' (size={board.size}):")
     else:
-        board = generate_puzzle(args.generate)
+        board = generate_puzzle(args.generate, args.iterations)
         if not quiet:
             print(f"Generated random {board.size}-puzzle:")
 
@@ -58,7 +76,7 @@ def main():
 
     if not is_solvable(board):
         print("This puzzle is UNSOLVABLE!")
-        return
+        sys.exit(1)
 
     if args.solvable:
         print("This puzzle is solvable.")
@@ -67,12 +85,21 @@ def main():
     if not quiet:
         print(f"Using heuristic: {args.heuristic}")
         print(f"Using algorithm: {args.algorithm}")
+        if args.algorithm == 'a_star' and args.weight != 1.0:
+            print(f"Using weight: {args.weight}")
         print("Solving...")
 
     heuristic_fn = HEURISTICS[args.heuristic]
 
     start = time.time()
-    result = solve(board, heuristic_fn, algorithm=args.algorithm)
+    try:
+        result = solve(board, heuristic_fn, algorithm=args.algorithm,
+                       weight=args.weight, max_nodes=args.max_nodes)
+    except SearchLimitReached as e:
+        print(f"Error: aborted after {e.opened} opened states.", file=sys.stderr)
+        print("Hint: retry with -w 1.5, -a greedy, or a higher --max-nodes.",
+              file=sys.stderr)
+        sys.exit(1)
     elapsed = time.time() - start
 
     if result is None:

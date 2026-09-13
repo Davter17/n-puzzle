@@ -2,7 +2,7 @@ PYTHON := $(shell python3 --version >/dev/null 2>&1 && echo python3 || echo pyth
 HEURISTICS := manhattan misplaced linear_conflict
 PUZZLES := $(wildcard puzzles/*.txt)
 
-.PHONY: all clean test run heuristics $(HEURISTICS) $(PUZZLES)
+.PHONY: all clean fclean re test run heuristics $(HEURISTICS) $(PUZZLES)
 
 all:
 	@echo "Usage:"
@@ -11,7 +11,7 @@ all:
 	@echo "  make heuristics puzzles/3x3.txt    compare the 3 heuristics (stats only)"
 	@echo "  make run ARGS=\"-g 4\"               generate and solve a random puzzle"
 	@echo "  make run ARGS=\"-f puzzles/3x3.txt -a greedy\""
-	@echo "  make test / make clean"
+	@echo "  make test / make clean / make fclean / make re"
 
 # --- make puzzles/<file>.txt [<heuristic>] ---
 $(PUZZLES):
@@ -59,3 +59,7 @@ clean:
 	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name '*.pyc' -delete 2>/dev/null || true
 	@find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
+
+fclean: clean
+
+re: fclean all

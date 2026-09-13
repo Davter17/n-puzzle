@@ -83,15 +83,15 @@ def parse_input(filename: str) -> Board:
                       if tiles.count(n) > 1]
         raise PuzzleError(f"Duplicate tile values found: {duplicates}")
 
-    missing = expected_set - actual_set
-    if missing:
-        raise PuzzleError(f"Missing tile values: {sorted(missing)}")
-
     out_of_range = actual_set - expected_set
     if out_of_range:
         raise PuzzleError(
             f"Tile values out of range [0, {expected - 1}]: "
             f"{sorted(out_of_range)}"
         )
+
+    missing = expected_set - actual_set
+    if missing:
+        raise PuzzleError(f"Missing tile values: {sorted(missing)}")
 
     return Board(size, tiles)

@@ -38,17 +38,21 @@ def is_solvable(board: Board) -> bool:
     return _invariant(board) == _get_goal_invariant(board.size)
 
 
-def generate_puzzle(size: int) -> Board:
+def generate_puzzle(size: int, iterations: int = 0) -> Board:
     if size < 1:
         raise ValueError(f"Size must be at least 1, got {size}")
     if size > MAX_SIZE:
         raise ValueError(f"Size too large: {size} (max is {MAX_SIZE})")
-
     goal = Board.generate_goal(size)
-    tiles = list(range(size * size))
-
-    while True:
-        random.shuffle(tiles)
-        board = Board(size, list(tiles))
-        if is_solvable(board) and board != goal:
-            return board
+    if size == 1:
+        return goal
+    if iterations <= 0:
+        iterations = size * size * 10
+    board = goal
+    previous = None
+    while board == goal:
+        for _ in range(iterations):
+            options = [n for n in board.get_neighbors() if n != previous]
+            previous = board
+            board = random.choice(options)
+    return board
