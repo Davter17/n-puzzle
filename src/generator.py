@@ -7,6 +7,7 @@ MAX_SIZE = 20
 
 
 def _count_inversions(tiles):
+    # Cuenta cuántas fichas mayores aparecen antes que menores (ignorando el 0)
     inv = 0
     arr = [t for t in tiles if t != 0]
     for i in range(len(arr)):
@@ -17,10 +18,13 @@ def _count_inversions(tiles):
 
 
 def _invariant(board: Board) -> int:
+    # Calcula el invariante de paridad para determinar solubilidad
     inv = _count_inversions(board.tiles)
     if board.size % 2 == 1:
+        # Tamaño impar: solo importa la paridad de las inversiones
         return inv % 2
     else:
+        # Tamaño par: inversiones + fila del hueco
         return (inv + board.row) % 2
 
 
@@ -28,6 +32,7 @@ _goal_invariant_cache = {}
 
 
 def _get_goal_invariant(size: int) -> int:
+    # Devuelve el invariante del tablero objetivo (cacheado)
     if size not in _goal_invariant_cache:
         goal = Board.generate_goal(size)
         _goal_invariant_cache[size] = _invariant(goal)
@@ -35,10 +40,12 @@ def _get_goal_invariant(size: int) -> int:
 
 
 def is_solvable(board: Board) -> bool:
+    # Comprueba si un puzzle tiene solución comparando invariantes
     return _invariant(board) == _get_goal_invariant(board.size)
 
 
 def generate_puzzle(size: int, iterations: int = 0) -> Board:
+    # Genera un puzzle aleatorio garantizando que es solucionable
     if size < 1:
         raise ValueError(f"Size must be at least 1, got {size}")
     if size > MAX_SIZE:
@@ -48,6 +55,7 @@ def generate_puzzle(size: int, iterations: int = 0) -> Board:
         return goal
     if iterations <= 0:
         iterations = size * size * 10
+    # Parte del objetivo y da movimientos aleatorios (siempre solucionable)
     board = goal
     previous = None
     while board == goal:

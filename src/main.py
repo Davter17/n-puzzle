@@ -9,8 +9,9 @@ from src.solver import SearchLimitReached, print_solution, solve
 
 
 def main():
+    # Punto de entrada del programa: parsea argumentos, carga/genera puzzle y resuelve
     parser = argparse.ArgumentParser(description='N-Puzzle solver using A*')
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=True)  # -f y -g son excluyentes, uno es obligatorio
     group.add_argument('-f', '--file', type=str, help='Input file with puzzle')
     group.add_argument('-g', '--generate', type=int,
                        help='Generate random puzzle of given size (1-20)')
@@ -32,12 +33,12 @@ def main():
     parser.add_argument('--max-nodes', type=int, default=0,
                         help='Abort after N opened states (0 = no limit)')
 
-    args = parser.parse_args()
+    args = parser.parse_args()  # parse_args: lee los argumentos de línea de comandos
 
     if args.generate is not None:
         if args.generate < 1:
             print(f"Error: Size must be at least 1, got {args.generate}", file=sys.stderr)
-            sys.exit(1)
+            sys.exit(1)  # sys.exit(1): termina el programa con código de error
         if args.generate > MAX_SIZE:
             print(f"Error: Size too large: {args.generate} (max is {MAX_SIZE})", file=sys.stderr)
             sys.exit(1)
@@ -56,6 +57,7 @@ def main():
 
     quiet = args.stats_only
 
+    # Carga el puzzle desde archivo o lo genera aleatoriamente
     if args.file:
         try:
             board = parse_input(args.file)
@@ -74,6 +76,7 @@ def main():
         print(board.display())
         print()
 
+    # Comprueba si el puzzle es solucionable
     if not is_solvable(board):
         print("This puzzle is UNSOLVABLE!")
         sys.exit(1)
@@ -91,7 +94,7 @@ def main():
 
     heuristic_fn = HEURISTICS[args.heuristic]
 
-    start = time.time()
+    start = time.time()  # time.time(): marca el tiempo de inicio
     try:
         result = solve(board, heuristic_fn, algorithm=args.algorithm,
                        weight=args.weight, max_nodes=args.max_nodes)
@@ -100,7 +103,7 @@ def main():
         print("Hint: retry with -w 1.5, -a greedy, or a higher --max-nodes.",
               file=sys.stderr)
         sys.exit(1)
-    elapsed = time.time() - start
+    elapsed = time.time() - start  # tiempo transcurrido
 
     if result is None:
         print("No solution found (this should not happen for solvable puzzles!)",
@@ -109,6 +112,7 @@ def main():
 
     path, stats = result
     if quiet:
+        # Modo estadísticas: solo muestra números, sin tableros
         print(f"[{args.heuristic:<16s}] moves={stats['moves']:<4d} "
               f"opened={stats['time_complexity']:<8d} "
               f"memory={stats['size_complexity']:<8d} "

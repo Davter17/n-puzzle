@@ -10,13 +10,14 @@ MAX_SIZE = 20
 
 
 def parse_input(filename: str) -> Board:
+    # Lee un archivo de texto y lo convierte en un tablero, con validación completa
     if not os.path.exists(filename):
         raise PuzzleError(f"File not found: '{filename}'")
     if os.path.isdir(filename):
         raise PuzzleError(f"'{filename}' is a directory, not a file")
     if not os.path.isfile(filename):
         raise PuzzleError(f"'{filename}' is not a regular file")
-    if not os.access(filename, os.R_OK):
+    if not os.access(filename, os.R_OK):  # os.access: comprueba permisos de lectura
         raise PuzzleError(f"No read permission for '{filename}'")
 
     try:
@@ -27,9 +28,10 @@ def parse_input(filename: str) -> Board:
     except IOError as e:
         raise PuzzleError(f"Cannot read file '{filename}': {e}")
 
+    # Elimina comentarios (todo lo que va después de #) y líneas vacías
     clean_lines = []
     for line in lines:
-        comment_pos = line.find('#')
+        comment_pos = line.find('#')  # find: devuelve posición del primer '#' (-1 si no existe)
         if comment_pos != -1:
             line = line[:comment_pos]
         line = line.strip()
@@ -56,6 +58,7 @@ def parse_input(filename: str) -> Board:
             f"but got {len(data_lines)}"
         )
 
+    # Extrae todos los números de las líneas de fichas
     tiles = []
     for line_num, line in enumerate(data_lines, start=2):
         for token in line.split():
@@ -75,6 +78,7 @@ def parse_input(filename: str) -> Board:
             f"but got {len(tiles)}"
         )
 
+    # Valida que no haya duplicados, valores fuera de rango o valores faltantes
     expected_set = set(range(expected))
     actual_set = set(tiles)
 
@@ -83,14 +87,14 @@ def parse_input(filename: str) -> Board:
                       if tiles.count(n) > 1]
         raise PuzzleError(f"Duplicate tile values found: {duplicates}")
 
-    out_of_range = actual_set - expected_set
+    out_of_range = actual_set - expected_set  # diferencia de sets: valores en actual_set pero no en expected_set
     if out_of_range:
         raise PuzzleError(
             f"Tile values out of range [0, {expected - 1}]: "
             f"{sorted(out_of_range)}"
         )
 
-    missing = expected_set - actual_set
+    missing = expected_set - actual_set  # valores que deberían estar pero no están
     if missing:
         raise PuzzleError(f"Missing tile values: {sorted(missing)}")
 

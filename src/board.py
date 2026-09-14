@@ -4,6 +4,7 @@ from typing import List, Tuple, Optional
 class Board:
     def __init__(self, size: int, tiles: Optional[List[int]] = None,
                  blank_pos: Optional[int] = None):
+        # Inicializa el tablero con tamaño, fichas y posición del hueco
         self.size = size
         if tiles:
             self.tiles = tuple(tiles)
@@ -21,35 +22,44 @@ class Board:
 
     @property
     def blank_pos(self) -> int:
+        # Devuelve la posición lineal del hueco (0)
         return self._blank_pos
 
     @property
     def row(self) -> int:
+        # Devuelve la fila del hueco (división entera)
         return self._blank_pos // self.size
 
     @property
     def col(self) -> int:
+        # Devuelve la columna del hueco (módulo)
         return self._blank_pos % self.size
 
     def __getitem__(self, idx: int) -> int:
+        # Permite acceder a las fichas con board[idx]
         return self.tiles[idx]
 
     def __eq__(self, other) -> bool:
+        # Compara dos tableros por tamaño y fichas
         if not isinstance(other, Board):
             return False
         return self.size == other.size and self.tiles == other.tiles
 
     def __hash__(self) -> int:
+        # Hash precalculado para usar Boards en sets/dicts
         return self._hash
 
     def __len__(self) -> int:
+        # Devuelve el número total de fichas
         return len(self.tiles)
 
     def get_neighbors(self) -> List['Board']:
+        # Genera todos los tableros alcanzables en un movimiento
         neighbors = []
         pos = self._blank_pos
         n = self.size
 
+        # Comprueba las 4 direcciones: arriba, abajo, izquierda, derecha
         if pos >= n:
             neighbors.append(self._swap(pos, pos - n))
         if pos < n * n - n:
@@ -62,18 +72,21 @@ class Board:
         return neighbors
 
     def _swap(self, i: int, j: int) -> 'Board':
+        # Intercambia dos fichas y devuelve un nuevo tablero
         tiles = list(self.tiles)
         tiles[i], tiles[j] = tiles[j], tiles[i]
         return Board(self.size, tiles, blank_pos=j)
 
     @staticmethod
     def generate_goal(size: int) -> 'Board':
+        # Genera el tablero objetivo en forma de espiral (snail)
         n = size
         tiles = [0] * (n * n)
         val = 1
         top, bottom = 0, n - 1
         left, right = 0, n - 1
 
+        # Rellena el borde exterior y avanza hacia el centro
         while top <= bottom and left <= right:
             for col in range(left, right + 1):
                 tiles[top * n + col] = val
@@ -94,10 +107,12 @@ class Board:
                     val += 1
                 left += 1
 
+        # El último valor (n*n) se reemplaza por el hueco (0)
         tiles[tiles.index(n * n)] = 0
         return Board(size, tiles)
 
     def display(self) -> str:
+        # Devuelve una representación visual del tablero
         lines = []
         for i in range(self.size):
             row_tiles = self.tiles[i * self.size:(i + 1) * self.size]
@@ -105,4 +120,5 @@ class Board:
         return '\n'.join(lines)
 
     def __repr__(self) -> str:
+        # Representación para debugging
         return f"Board(size={self.size})"

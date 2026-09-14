@@ -9,10 +9,12 @@ _INF = 1 << 60
 
 class Node:
     __slots__ = ('tiles', 'blank', 'parent', 'g', 'h', 'move')
+    # __slots__: optimiza memoria al evitar crear __dict__ por instancia
 
     def __init__(self, tiles: Tuple[int, ...], blank: int,
                  parent: Optional['Node'] = None, g: int = 0,
                  h: int = 0, move: str = ''):
+        # Nodo del árbol de búsqueda: estado + coste + heurística
         self.tiles = tiles
         self.blank = blank
         self.parent = parent
@@ -22,6 +24,7 @@ class Node:
 
 
 def _neighbor_table(size: int) -> List[Tuple[Tuple[int, str], ...]]:
+    # Precalcula para cada posición del hueco, las posiciones vecinas y su dirección
     total = size * size
     table = []
     for blank in range(total):
@@ -39,6 +42,7 @@ def _neighbor_table(size: int) -> List[Tuple[Tuple[int, str], ...]]:
 
 
 def reconstruct_path(node: Node, size: int) -> List[Board]:
+    # Reconstruye el camino desde el nodo objetivo hasta el inicial (y lo invierte)
     path = []
     current: Optional[Node] = node
     while current:
@@ -49,6 +53,7 @@ def reconstruct_path(node: Node, size: int) -> List[Board]:
 
 
 def reconstruct_moves(node: Node) -> List[str]:
+    # Reconstruye la lista de movimientos desde el objetivo hasta el inicio
     moves = []
     current: Optional[Node] = node
     while current and current.parent:
@@ -59,6 +64,7 @@ def reconstruct_moves(node: Node) -> List[str]:
 
 
 class SearchLimitReached(Exception):
+    # Excepción lanzada cuando se supera el límite de nodos abiertos
     def __init__(self, opened: int):
         super().__init__(f"search aborted after {opened} opened states")
         self.opened = opened
@@ -67,10 +73,12 @@ class SearchLimitReached(Exception):
 def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
           algorithm: str = 'a_star', weight: float = 1.0,
           max_nodes: int = 0) -> Optional[Tuple[List[Board], Dict]]:
+    # Resuelve el puzzle usando A*, Greedy o Costo Uniforme
     size = initial_board.size
     goal_tiles = Board.generate_goal(size).tiles
     start_tiles = initial_board.tiles
 
+    # Caso especial: el puzzle ya está resuelto
     if start_tiles == goal_tiles:
         return [initial_board], {
             'time_complexity': 1,
@@ -85,18 +93,18 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
 
     open_heap: List[Tuple[int, int, int, Node]] = []
     counter = 0
+    # La prioridad depende del algoritmo elegido
     if algorithm == 'greedy':
         start_priority = start_h
     elif algorithm == 'uniform_cost':
         start_priority = 0
     else:
         start_priority = start_h * weight
+    # heapq: cola de prioridad (min-heap) - siempre saca el elemento menor
     heapq.heappush(open_heap, (start_priority, start_h, counter, start_node))
     counter += 1
 
-    # Best known g per state. Nodes are re-opened when a shorter path to an
-    # already expanded state is found (needed because linear conflict is
-    # admissible but not consistent).
+    # Diccionario con el mejor coste g conocido para cada estado
     g_best: Dict[Tuple[int, ...], int] = {start_tiles: 0}
 
     max_memory = 2
@@ -105,6 +113,7 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
     while open_heap:
         max_memory = max(max_memory, len(open_heap) + len(g_best))
 
+        # Extrae el nodo con menor prioridad
         _, _, _, current = heapq.heappop(open_heap)
         total_opened += 1
         if max_nodes and total_opened > max_nodes:
@@ -112,9 +121,11 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
 
         tiles = current.tiles
         g = current.g
+        # Si ya se encontró un camino mejor a este estado, se ignora
         if g > g_best[tiles]:
-            continue  # stale entry: a shorter path to this state exists
+            continue
 
+        # Comprueba si es el objetivo
         if tiles == goal_tiles:
             path = reconstruct_path(current, size)
             stats = {
@@ -128,8 +139,10 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
         h = current.h
         new_g = g + 1
 
+        # Genera todos los vecinos (movimientos legales)
         for pos, move in neighbor_table[blank]:
             tile = tiles[pos]
+            # Construye las nuevas fichas intercambiando hueco y pieza
             if pos > blank:
                 neighbor_tiles = (
                     tiles[:blank] + (tile,) + tiles[blank + 1:pos]
@@ -141,6 +154,7 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
                     + (tile,) + tiles[blank + 1:]
                 )
 
+            # Solo procesa si es un camino mejor al estado
             if new_g < g_best.get(neighbor_tiles, _INF):
                 g_best[neighbor_tiles] = new_g
 
@@ -164,6 +178,7 @@ def solve(initial_board: Board, heuristic_fn: Callable[[Board], int],
 
 
 def print_solution(path: List[Board], stats: Dict):
+    # Imprime la solución paso a paso y las estadísticas
     print(f"Solution found in {stats['moves']} moves:")
     for board in path:
         print()
