@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Puzzle Web</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon.png') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div id="status-msg" class="status-msg"></div>
+    <div id="app">
+        <div id="left-panel">
+            <h1 class="title">N-Puzzle</h1>
+
+            <div class="control-group">
+                <label class="control-label">Size</label>
+                <div id="size-selector" class="size-selector">
+                    <button class="size-btn active" data-size="3">3x3</button>
+                    <button class="size-btn" data-size="4">4x4</button>
+                    <button class="size-btn" data-size="5">5x5</button>
+                    <button class="size-btn" data-size="6">6x6</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Image</label>
+                <button id="upload-btn" class="btn btn-secondary">Load image</button>
+                <input type="file" id="image-input" accept="image/*" hidden>
+            </div>
+
+            <div class="control-group">
+                <div class="label-row">
+                    <label class="control-label">Heuristic</label>
+                    <span class="tooltip-trigger">?<span class="tooltip-text"><strong>Misplaced:</strong> Counts how many tiles are not in their goal position.<br><br><strong>Manhattan:</strong> Sum of horizontal and vertical distances of each tile to its goal position.<br><br><strong>Linear:</strong> Manhattan distance plus penalty for tiles in the same row/column that must pass each other.</span></span>
+                </div>
+                <div id="heuristic-selector" class="size-selector">
+                    <button class="heuristic-btn" data-heuristic="misplaced">Misplaced</button>
+                    <button class="heuristic-btn active" data-heuristic="manhattan">Manhattan</button>
+                    <button class="heuristic-btn" data-heuristic="linear_conflict">Linear</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Precision vs Speed</label>
+                <div class="slider-container">
+                    <span class="slider-label">Precision</span>
+                    <input type="range" id="precision-slider" min="0" max="100" value="50" class="slider">
+                    <span class="slider-label">Speed</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <button id="randomize-btn" class="btn btn-primary">Randomizer</button>
+            </div>
+
+            <div class="control-group">
+                <button id="resolve-btn" class="btn btn-accent">Resolve</button>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <div id="puzzle-wrapper">
+                <div id="puzzle-area">
+                    <div id="puzzle-container">
+                        <div id="puzzle-grid"></div>
+                        <div id="puzzle-loader" class="loader-overlay hidden">
+                            <div class="spinner"></div>
+                            <span>Solving...</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="speed-control">
+                    <span class="speed-label">Slow</span>
+                    <input type="range" id="speed-slider" min="10" max="600" value="350" class="slider" style="direction: rtl;">
+                    <span class="speed-label">Fast</span>
+                </div>
+            </div>
+            <div id="moves-panel">
+                <div class="moves-header">Moves</div>
+                <div id="moves-bar">
+                    <div id="moves-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="crop-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Crop image</h2>
+            <div class="crop-wrapper">
+                <img id="crop-image" src="" alt="Crop">
+            </div>
+            <div class="modal-actions">
+                <button id="crop-confirm" class="btn btn-primary">Confirm</button>
+                <button id="crop-cancel" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
