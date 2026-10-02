@@ -433,10 +433,25 @@ function disableControls(disabled) {
     document.querySelectorAll('.size-btn').forEach(b => b.disabled = disabled);
 }
 
+let statusTimeout = null;
+
 function setStatus(msg, type = '') {
     const el = document.getElementById('status-msg');
+    
+    if (statusTimeout) {
+        clearTimeout(statusTimeout);
+        statusTimeout = null;
+    }
+    
     el.textContent = msg;
     el.className = 'status-msg' + (type ? ' ' + type : '') + (msg ? ' visible' : '');
+    
+    if (msg) {
+        statusTimeout = setTimeout(() => {
+            el.classList.remove('visible');
+            statusTimeout = null;
+        }, 4000);
+    }
 }
 
 function arraysEqual(a, b) {
